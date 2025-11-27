@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { DocumentData } from '@/app/page'
+import { DocumentData } from '@/types'
 
 interface DocumentUploadProps {
   onUpload: (data: DocumentData) => void

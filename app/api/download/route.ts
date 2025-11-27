@@ -127,8 +127,11 @@ export async function POST(request: NextRequest) {
     // Generate the document buffer
     const buffer = zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' })
 
-    // Return as download directly as Buffer
-    return new NextResponse(buffer, {
+    // Convert Buffer to Uint8Array for NextResponse compatibility
+    const uint8Array = new Uint8Array(buffer)
+
+    // Return as download
+    return new NextResponse(uint8Array, {
       headers: {
         'Content-Type':
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

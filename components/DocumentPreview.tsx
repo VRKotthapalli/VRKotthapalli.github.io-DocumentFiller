@@ -25,6 +25,7 @@ export default function DocumentPreview({
         body: JSON.stringify({
           documentId: documentData.id,
           placeholders: documentData.placeholders,
+          fileBuffer: documentData.fileBuffer,
         }),
       })
 

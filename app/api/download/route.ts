@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import PizZip from 'pizzip'
-import fs from 'fs/promises'
-import path from 'path'
-
-const UPLOADS_DIR = path.join(process.cwd(), 'uploads')
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { documentId, placeholders } = body
+    const { documentId, placeholders, fileBuffer } = body
 
     if (!documentId) {
       return NextResponse.json(
@@ -17,21 +13,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Load the original document
-    const originalFilePath = path.join(UPLOADS_DIR, `${documentId}.docx`)
-    
-    try {
-      await fs.access(originalFilePath)
-    } catch {
+    if (!fileBuffer) {
       return NextResponse.json(
-        { error: 'Original document not found' },
-        { status: 404 }
+        { error: 'File buffer not provided' },
+        { status: 400 }
       )
     }
 
-    // Read the original document
-    const content = await fs.readFile(originalFilePath, 'binary')
-    const zip = new PizZip(content)
+    // Decode base64 file buffer to binary string
+    const fileBufferDecoded = Buffer.from(fileBuffer, 'base64')
+    const zip = new PizZip(fileBufferDecoded)
 
     // Helper function to escape XML special characters
     const escapeXml = (text: string): string => {

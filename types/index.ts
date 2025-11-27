@@ -10,5 +10,6 @@ export interface DocumentData {
   originalText: string
   placeholders: Placeholder[]
   filledText: string
+  fileBuffer?: string // Base64 encoded file buffer for serverless environments
 }
 

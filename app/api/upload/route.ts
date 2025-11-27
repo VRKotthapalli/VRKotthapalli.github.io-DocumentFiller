@@ -5,16 +5,16 @@ import fs from 'fs/promises'
 import path from 'path'
 import { Placeholder, DocumentData } from '@/types'
 
-// Ensure uploads directory exists
-const UPLOADS_DIR = path.join(process.cwd(), 'uploads')
-const TEMP_DIR = path.join(process.cwd(), 'temp')
+// Use /tmp for serverless environments (Vercel, AWS Lambda, etc.)
+// /tmp is the only writable directory in serverless functions
+const TEMP_DIR = '/tmp'
 
 async function ensureDirectories() {
   try {
-    await fs.mkdir(UPLOADS_DIR, { recursive: true })
     await fs.mkdir(TEMP_DIR, { recursive: true })
   } catch (error) {
-    console.error('Error creating directories:', error)
+    // /tmp should always exist, but handle gracefully
+    console.error('Error creating temp directory:', error)
   }
 }
 
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer())
     const tempFilePath = path.join(TEMP_DIR, `${documentId}.docx`)
 
-    // Save file temporarily
+    // Save file temporarily to /tmp for processing
     await fs.writeFile(tempFilePath, buffer)
 
     // Extract text from docx
@@ -81,21 +81,18 @@ export async function POST(request: NextRequest) {
     // Extract placeholders
     const placeholders = extractPlaceholders(text)
 
+    // Convert file buffer to base64 for storage (needed for serverless environments)
+    // where files don't persist between requests
+    const fileBufferBase64 = buffer.toString('base64')
+
     // Create document data
     const documentData: DocumentData = {
       id: documentId,
       originalText: text,
       placeholders,
       filledText: text,
+      fileBuffer: fileBufferBase64, // Store file buffer for download
     }
-
-    // Save document data to a JSON file for later retrieval
-    const dataFilePath = path.join(UPLOADS_DIR, `${documentId}.json`)
-    await fs.writeFile(dataFilePath, JSON.stringify(documentData, null, 2))
-
-    // Keep the original file for download generation
-    const savedFilePath = path.join(UPLOADS_DIR, `${documentId}.docx`)
-    await fs.copyFile(tempFilePath, savedFilePath)
 
     // Clean up temp file
     await fs.unlink(tempFilePath).catch(() => {})

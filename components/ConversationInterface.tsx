@@ -29,8 +29,44 @@ export default function ConversationInterface({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // Find the next unfilled placeholder
+  const findNextUnfilledPlaceholder = (startIndex: number = 0) => {
+    for (let i = startIndex; i < placeholders.length; i++) {
+      const placeholder = placeholders[i]
+      if (!placeholder.value || placeholder.value.trim() === '') {
+        return i
+      }
+    }
+    return -1 // No unfilled placeholder found
+  }
+
+  // Update current index to always point to the first unfilled placeholder when values change
+  useEffect(() => {
+    // Always find the first unfilled placeholder from the beginning
+    const firstUnfilledIndex = findNextUnfilledPlaceholder(0)
+    if (firstUnfilledIndex !== -1) {
+      setCurrentPlaceholderIndex(firstUnfilledIndex)
+    } else {
+      // All placeholders are filled
+      setCurrentPlaceholderIndex(placeholders.length)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placeholders.map(p => p.value).join(',')]) // Only react to value changes
+
   const getCurrentPlaceholder = () => {
-    return placeholders[currentPlaceholderIndex]
+    // Always start from the first unfilled placeholder
+    const firstUnfilledIndex = findNextUnfilledPlaceholder(0)
+    if (firstUnfilledIndex !== -1) {
+      if (currentPlaceholderIndex !== firstUnfilledIndex) {
+        setCurrentPlaceholderIndex(firstUnfilledIndex)
+      }
+      return placeholders[firstUnfilledIndex]
+    }
+    // All placeholders are filled
+    if (currentPlaceholderIndex < placeholders.length) {
+      setCurrentPlaceholderIndex(placeholders.length)
+    }
+    return null
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,9 +96,9 @@ export default function ConversationInterface({
       // Update the placeholder
       onPlaceholderUpdate(currentPlaceholder.id, extractedValue)
 
-      // Move to next placeholder
-      if (currentPlaceholderIndex < placeholders.length - 1) {
-        const nextIndex = currentPlaceholderIndex + 1
+      // Always find the first unfilled placeholder from the beginning
+      const nextIndex = findNextUnfilledPlaceholder(0)
+      if (nextIndex !== -1) {
         setCurrentPlaceholderIndex(nextIndex)
         const nextPlaceholder = placeholders[nextIndex]
         setMessages(prev => [
@@ -73,8 +109,8 @@ export default function ConversationInterface({
           },
         ])
       } else {
-        // Last placeholder - mark as complete
-        setCurrentPlaceholderIndex(placeholders.length) // Set beyond array to prevent further processing
+        // All placeholders are filled
+        setCurrentPlaceholderIndex(placeholders.length)
         setMessages(prev => [
           ...prev,
           {
@@ -101,13 +137,29 @@ export default function ConversationInterface({
     onPlaceholderUpdate(placeholderId, value)
     const placeholder = placeholders.find(p => p.id === placeholderId)
     if (placeholder) {
-      setMessages(prev => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: `I've set "${placeholder.key}" to "${value}".`,
-        },
-      ])
+      // Always find the first unfilled placeholder from the beginning
+      const nextIndex = findNextUnfilledPlaceholder(0)
+      if (nextIndex !== -1) {
+        setCurrentPlaceholderIndex(nextIndex)
+        const nextPlaceholder = placeholders[nextIndex]
+        setMessages(prev => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: `I've set "${placeholder.key}" to "${value}". Next, what should "${nextPlaceholder.key}" be?`,
+          },
+        ])
+      } else {
+        // All placeholders are filled
+        setCurrentPlaceholderIndex(placeholders.length)
+        setMessages(prev => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: `I've set "${placeholder.key}" to "${value}". All placeholders are now filled! You can review the document and download it when ready.`,
+          },
+        ])
+      }
     }
   }
 
